@@ -7,13 +7,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jez.jetpackracer.features.game.GameVM.Event
+import jez.jetpackracer.game.GameEngine
 import jez.jetpackracer.utils.toViewState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @HiltViewModel
-class GameVM @Inject constructor() : Consumer<Event>, ViewModel(), DefaultLifecycleObserver {
+class GameVM @Inject constructor(
+    gameEngine: GameEngine,
+) : Consumer<Event>, ViewModel(), DefaultLifecycleObserver {
 
     sealed class Event {
         object Pause : Event()
