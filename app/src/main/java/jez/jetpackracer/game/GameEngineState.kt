@@ -35,7 +35,7 @@ data class WorldState(
      * Player is a special entity that we are going to need to
      * often be referencing separately from other world entities.
      *
-     * Position is relative to localGameBounds.
+     * Position is relative to baseWorldOffset.
      * Velocity is in World space.
      */
     val player: PlayerState,
@@ -43,7 +43,7 @@ data class WorldState(
     /**
      * All non-player objects.
      *
-     * Position is relative to localGameBounds.
+     * Position is relative to baseWorldOffset.
      * Velocity is in World space.
      */
     val entities: List<WorldEntity>,
