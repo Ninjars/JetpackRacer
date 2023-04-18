@@ -3,34 +3,60 @@ package jez.jetpackracer.game
 import androidx.compose.ui.graphics.Color
 import kotlin.math.abs
 
-
+/**
+ * [friction]: factor used to proportionally reduce velocity per axis.
+ *      Value of 1.0 will negate all velocity from previous frame, 0.0 means no velocity reduction.
+ * [baseAcceleration]: constant acceleration applied in addition to input per axis.
+ *      Could be used to simulate gravity or to represent a vehicle under constant thrust.
+ * [maxInputAcceleration]: max velocity change per axis in response to player input.
+ */
 data class PlayerState(
     val visuals: EntityVis,
-    val localPosition: Vector2,
+    val worldPosition: Vector2,
     val velocity: Vector2,
-    val collisionBounds: CollisionBounds.Circle,
-)
+    val collider: Collider.Circle,
+    val friction: Vector2,
+    val baseAcceleration: Vector2,
+    val maxInputAcceleration: Vector2,
+    val collisionStatus: List<CollisionStatus>,
+) {
+    val boundingBox = Bounds(
+        left = worldPosition.x - collider.radius,
+        right = worldPosition.x + collider.radius,
+        top = worldPosition.y + collider.radius,
+        bottom = worldPosition.y - collider.radius,
+    )
+}
 
 data class WorldEntity(
+    val id: String,
     val visuals: EntityVis,
-    val localPosition: Vector2,
+    val worldPosition: Vector2,
     val velocity: Vector2,
-    val collisionBounds: CollisionBounds,
+    val collider: Collider,
 ) {
-    val boundingBox = when (collisionBounds) {
-        is CollisionBounds.Box -> collisionBounds.bounds
-        is CollisionBounds.Circle -> Bounds(
-            left = localPosition.x - collisionBounds.radius,
-            right = localPosition.x + collisionBounds.radius,
-            top = localPosition.y + collisionBounds.radius,
-            bottom = localPosition.y - collisionBounds.radius,
+    val boundingBox = when (collider) {
+        is Collider.Box -> collider.bounds.offset(worldPosition)
+        is Collider.Circle -> Bounds(
+            left = worldPosition.x - collider.radius,
+            right = worldPosition.x + collider.radius,
+            top = worldPosition.y + collider.radius,
+            bottom = worldPosition.y - collider.radius,
         )
     }
 }
 
-sealed class CollisionBounds {
-    data class Circle(val radius: Double) : CollisionBounds()
-    data class Box(val bounds: Bounds) : CollisionBounds()
+data class CollisionStatus(
+    val collisionTarget: WorldEntity?,
+    val didCollisionStartThisFrame: Boolean,
+    val collisionDurationNanos: Long,
+) {
+    val didCollisionEndThisFrame = collisionTarget == null
+}
+
+sealed class Collider {
+    data class Circle(val radius: Double) : Collider()
+    data class Box(val bounds: Bounds) : Collider()
 }
 
 sealed class EntityVis {
@@ -61,6 +87,7 @@ data class Vector2(
     operator fun unaryMinus() =
         Vector2(-x, -y)
 
+
     fun dominantDirection() =
         if (abs(x) > abs(y)) {
             if (x > 0) Right else Left
@@ -73,6 +100,9 @@ data class Vector2(
         val Down = Vector2(.0, -1.0)
         val Left = Vector2(-1.0, .0)
         val Right = Vector2(1.0, .0)
+
+        fun sqrMag(a: Vector2, b: Vector2): Double =
+            (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)
     }
 }
 
@@ -85,10 +115,12 @@ data class Bounds(
     val width = right - left
     val height = top - bottom
 
-    val center = Vector2(
-        x = left + width / 2.0,
-        y = bottom + height / 2.0
-    )
+    val center by lazy {
+        Vector2(
+            x = left + width / 2.0,
+            y = bottom + height / 2.0
+        )
+    }
 
     fun offset(x: Double = .0, y: Double = .0) =
         this.copy(

@@ -28,11 +28,15 @@ class GameEngine @Inject constructor() {
             is GameEngineState.Initialising -> currentState
             is GameEngineState.Idling -> TODO()
             is GameEngineState.Running -> {
-                TODO()
                 // process input and update state accordingly (eg player velocity, pause command)
+
                 // step game simulation to get updated state and events
+                val updatedWorld = ProcessGameUpdate(currentState.worldState, deltaNanos)
+
                 // process events (enqueue sound effects)
+
                 // push updated state
+                GameEngineState.Running(updatedWorld)
             }
         }
     }
