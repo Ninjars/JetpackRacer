@@ -27,6 +27,13 @@ data class WorldState(
     val baseWorldVelocity: Vector2,
 
     /**
+     * Non-linear factor used to proportionally reduce velocity per axis.
+     *
+     * Value of 1.0 will negate all velocity from previous frame, 0.0 means no velocity reduction.
+     */
+    val friction: Vector2,
+
+    /**
      * Tracks the offset of the relativeGameBounds vs the world origin.
      */
     val baseWorldOffset: Vector2,

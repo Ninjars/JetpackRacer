@@ -10,29 +10,20 @@ private fun Long.nanosToSeconds() =
     this / 1000000000.0
 
 object ProcessGameUpdate : (WorldState, Long) -> WorldState {
-    private val velocityBleedRate = Vector2(.25, 0.5)
-
     override fun invoke(initialState: WorldState, update: Long): WorldState =
         with(initialState) {
             val updateSeconds: Double = update.nanosToSeconds()
 
-            // Update player velocity
-            val incomingPlayerVelocity =
-                player.velocity + player.baseAcceleration * updateSeconds
+            // Update world velocity with player velocity, acceleration and apply friction
+            val summedVelocity =
+                (baseWorldVelocity + player.velocity + player.baseAcceleration * updateSeconds)
+            val updatedVelocity = summedVelocity - (summedVelocity * friction * updateSeconds)
 
-            // Bleed player velocity into world velocity
-            // TODO: better mechanism to adjust bleed rate to be proportional to position
-            //   within desired player movement bounds, to keep player within a focused area
-            //   of the screen and to move the world faster as they approach the limits of that space
-            val deltaV = incomingPlayerVelocity - baseWorldVelocity
-            val bleedV = deltaV * velocityBleedRate * updateSeconds
+            // Update world offset
+            val updatedWorldOffset = baseWorldOffset + updatedVelocity
 
-            val playerVelocity = incomingPlayerVelocity - bleedV
-            val worldVelocity = (baseWorldVelocity + bleedV) * player.friction
-
-            val updatedWorldOffset = baseWorldOffset + worldVelocity
-
-            val dominantVector = worldVelocity.dominantDirection()
+            // Update entities
+            val dominantVector = updatedVelocity.dominantDirection()
             val activeEntities = entities.filter {
                 // Remove old entities that are outside bounds
                 val entityBounds = it.boundingBox.offset(-updatedWorldOffset)
@@ -76,11 +67,11 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
                 }
 
             return initialState.copy(
-                baseWorldVelocity = worldVelocity,
+                baseWorldVelocity = updatedVelocity,
                 baseWorldOffset = updatedWorldOffset,
                 player = player.copy(
-                    velocity = playerVelocity,
-                    worldPosition = player.worldPosition + playerVelocity * updateSeconds,
+                    velocity = Vector2.Zero,
+                    worldPosition = player.worldPosition + updatedVelocity * updateSeconds,
                     collisionStatus = newOrOngoingCollisions + endingCollisions
                 ),
                 entities = activeEntities,

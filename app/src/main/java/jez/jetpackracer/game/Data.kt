@@ -4,8 +4,7 @@ import androidx.compose.ui.graphics.Color
 import kotlin.math.abs
 
 /**
- * [friction]: factor used to proportionally reduce velocity per axis.
- *      Value of 1.0 will negate all velocity from previous frame, 0.0 means no velocity reduction.
+ * [velocity]: local velocity in addition to world velocity
  * [baseAcceleration]: constant acceleration applied in addition to input per axis.
  *      Could be used to simulate gravity or to represent a vehicle under constant thrust.
  * [maxInputAcceleration]: max velocity change per axis in response to player input.
@@ -15,7 +14,6 @@ data class PlayerState(
     val worldPosition: Vector2,
     val velocity: Vector2,
     val collider: Collider.Circle,
-    val friction: Vector2,
     val baseAcceleration: Vector2,
     val maxInputAcceleration: Vector2,
     val collisionStatus: List<CollisionStatus>,
@@ -28,6 +26,9 @@ data class PlayerState(
     )
 }
 
+/**
+ * [velocity]: local velocity in addition to world velocity
+ */
 data class WorldEntity(
     val id: String,
     val visuals: EntityVis,
@@ -96,6 +97,7 @@ data class Vector2(
         }
 
     companion object {
+        val Zero = Vector2(.0, .0)
         val Up = Vector2(.0, 1.0)
         val Down = Vector2(.0, -1.0)
         val Left = Vector2(-1.0, .0)
