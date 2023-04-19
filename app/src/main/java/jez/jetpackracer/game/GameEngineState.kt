@@ -39,6 +39,18 @@ data class WorldState(
     val baseWorldOffset: Vector2,
 
     /**
+     * Anchor point for the view port.
+     *
+     * Tracks after the player position.
+     */
+    val viewWorldOrigin: Vector2,
+
+    /**
+     * Affects how fast the view tracks after the player.
+     */
+    val viewVelocityFactor: Vector2,
+
+    /**
      * Player is a special entity that we are going to need to
      * often be referencing separately from other world entities.
      *

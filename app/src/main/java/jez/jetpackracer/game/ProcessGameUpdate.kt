@@ -18,9 +18,13 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
             val summedVelocity =
                 (baseWorldVelocity + player.velocity + player.baseAcceleration * updateSeconds)
             val updatedVelocity = summedVelocity - (summedVelocity * friction * updateSeconds)
+            val worldDistanceThisFrame = updatedVelocity * updateSeconds
 
-            // Update world offset
-            val updatedWorldOffset = baseWorldOffset + updatedVelocity
+            // Update world offsets
+            val updatedWorldOffset = baseWorldOffset + worldDistanceThisFrame
+            val playerPosition = player.worldPosition + worldDistanceThisFrame
+            val updatedViewWorldOrigin =
+                viewWorldOrigin + (playerPosition - viewWorldOrigin) * viewVelocityFactor
 
             // Update entities
             val dominantVector = updatedVelocity.dominantDirection()
@@ -37,7 +41,7 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
             }.map {
                 // Update entities position
                 it.copy(
-                    worldPosition = it.worldPosition + it.velocity * updateSeconds,
+                    worldPosition = it.worldPosition + it.velocity * updateSeconds + worldDistanceThisFrame,
                 )
             }
 
@@ -69,9 +73,10 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
             return initialState.copy(
                 baseWorldVelocity = updatedVelocity,
                 baseWorldOffset = updatedWorldOffset,
+                viewWorldOrigin = updatedViewWorldOrigin,
                 player = player.copy(
                     velocity = Vector2.Zero,
-                    worldPosition = player.worldPosition + updatedVelocity * updateSeconds,
+                    worldPosition = playerPosition,
                     collisionStatus = newOrOngoingCollisions + endingCollisions
                 ),
                 entities = activeEntities,
