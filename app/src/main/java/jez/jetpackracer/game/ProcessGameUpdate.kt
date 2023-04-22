@@ -1,5 +1,6 @@
 package jez.jetpackracer.game
 
+import jez.jetpackracer.game.GameEngineState.GameInput
 import jez.jetpackracer.game.Vector2.Companion.Down
 import jez.jetpackracer.game.Vector2.Companion.Left
 import jez.jetpackracer.game.Vector2.Companion.Right
@@ -9,28 +10,34 @@ import kotlin.math.abs
 private fun Long.nanosToSeconds() =
     this / 1000000000.0
 
-object ProcessGameUpdate : (WorldState, Long) -> WorldState {
-    override fun invoke(initialState: WorldState, update: Long): WorldState =
+object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
+    override fun invoke(initialState: WorldState, input: GameInput, updateNanos: Long): WorldState =
         with(initialState) {
-            val updateSeconds: Double = update.nanosToSeconds()
+            val updateSeconds: Double = updateNanos.nanosToSeconds()
 
             // Update world velocity with player velocity, acceleration and apply friction
-            val summedVelocity =
-                (baseWorldVelocity + player.velocity + player.baseAcceleration * updateSeconds)
-            val updatedVelocity = summedVelocity - (summedVelocity * friction * updateSeconds)
-            val worldDistanceThisFrame = updatedVelocity * updateSeconds
+            val updatedWorldSpeed =
+                worldSpeed.copy(accumulatedNanos = worldSpeed.accumulatedNanos + updateNanos)
+            val worldVelocity = worldMovementVector * updatedWorldSpeed.value
+            val worldDistanceThisFrame = worldVelocity * updateSeconds
 
-            // Update world offsets
-            val updatedWorldOffset = baseWorldOffset + worldDistanceThisFrame
-            val playerPosition = player.worldPosition + worldDistanceThisFrame
-            val updatedViewWorldOrigin =
-                viewWorldOrigin + (playerPosition - viewWorldOrigin) * viewVelocityFactor
+            // Update world offset
+            val updatedWorldOrigin = worldOrigin + worldDistanceThisFrame
+
+            // update player
+            val carriedPlayerVelocity =
+                player.velocity - (player.velocity * player.friction) * updateSeconds
+            val inputVelocity = player.maxInputAcceleration * input.movementVector * updateSeconds
+            val playerVelocity = carriedPlayerVelocity + inputVelocity
+            val playerPosition = player.position + playerVelocity * updateSeconds
+            val updatedViewOriginOffset =
+                viewOriginOffset + (playerPosition - viewOriginOffset) * viewUpdateSpeedFactor * updateSeconds
 
             // Update entities
-            val dominantVector = updatedVelocity.dominantDirection()
+            val dominantVector = worldVelocity.dominantDirection()
             val activeEntities = entities.filter {
                 // Remove old entities that are outside bounds
-                val entityBounds = it.boundingBox.offset(-updatedWorldOffset)
+                val entityBounds = it.boundingBox
                 when (dominantVector) {
                     Up -> entityBounds.top < localGameBounds.bottom
                     Down -> entityBounds.bottom > localGameBounds.top
@@ -38,16 +45,19 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
                     Right -> entityBounds.right < localGameBounds.left
                     else -> true
                 }
-            }.map {
+            }.map { entity ->
                 // Update entities position
-                it.copy(
-                    worldPosition = it.worldPosition + it.velocity * updateSeconds + worldDistanceThisFrame,
-                )
+                with(entity) {
+                    copy(
+                        position = (position + velocity * updateSeconds)
+                            .let { if (isStaticToGameBounds) it + worldDistanceThisFrame else it }
+                    )
+                }
             }
 
             // check for player/entity collisions, tracking start, duration and end of collisions
             val collidingEntities = activeEntities.filter {
-                player.isCollidingWith(it)
+                it.isCollidingWith(playerPosition, player.collider)
             }
             val newOrOngoingCollisions = collidingEntities.map { collidingEntity ->
                 val previousCollision = player.collisionStatus
@@ -55,7 +65,7 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
                 CollisionStatus(
                     collisionTarget = collidingEntity,
                     didCollisionStartThisFrame = previousCollision == null,
-                    collisionDurationNanos = previousCollision?.let { it.collisionDurationNanos + update }
+                    collisionDurationNanos = previousCollision?.let { it.collisionDurationNanos + updateNanos }
                         ?: 0,
                 )
             }
@@ -71,31 +81,34 @@ object ProcessGameUpdate : (WorldState, Long) -> WorldState {
                 }
 
             return initialState.copy(
-                baseWorldVelocity = updatedVelocity,
-                baseWorldOffset = updatedWorldOffset,
-                viewWorldOrigin = updatedViewWorldOrigin,
+                worldSpeed = updatedWorldSpeed,
+                worldOrigin = updatedWorldOrigin,
+                viewOriginOffset = updatedViewOriginOffset,
                 player = player.copy(
-                    velocity = Vector2.Zero,
-                    worldPosition = playerPosition,
+                    position = playerPosition,
+                    velocity = playerVelocity,
                     collisionStatus = newOrOngoingCollisions + endingCollisions
                 ),
                 entities = activeEntities,
             )
         }
 
-    private fun PlayerState.isCollidingWith(entity: WorldEntity) =
-        when (entity.collider) {
+    private fun WorldEntity.isCollidingWith(
+        playerPosition: Vector2,
+        playerCollider: Collider.Circle
+    ) =
+        when (collider) {
             is Collider.Circle ->
                 circleCollision(
-                    collider.radius + entity.collider.radius,
-                    worldPosition,
-                    entity.worldPosition
+                    collider.radius + playerCollider.radius,
+                    position,
+                    playerPosition
                 )
             is Collider.Box ->
                 circleToBoxCollision(
-                    worldPosition,
-                    collider.radius,
-                    entity.boundingBox,
+                    playerPosition,
+                    playerCollider.radius,
+                    boundingBox,
                 )
         }
 

@@ -31,12 +31,13 @@ class GameEngine @Inject constructor() {
                 // process input and update state accordingly (eg player velocity, pause command)
 
                 // step game simulation to get updated state and events
-                val updatedWorld = ProcessGameUpdate(currentState.worldState, deltaNanos)
+                val updatedWorld =
+                    ProcessGameUpdate(currentState.worldState, currentState.input, deltaNanos)
 
                 // process events (enqueue sound effects)
 
                 // push updated state
-                GameEngineState.Running(updatedWorld)
+                currentState.copy(worldState = updatedWorld)
             }
         }
     }

@@ -2,8 +2,10 @@ package jez.jetpackracer.game
 
 import androidx.compose.ui.graphics.Color
 import kotlin.math.abs
+import kotlin.math.absoluteValue
 
 /**
+ * [position]: position relative to game bounds
  * [velocity]: local velocity in addition to world velocity
  * [baseAcceleration]: constant acceleration applied in addition to input per axis.
  *      Could be used to simulate gravity or to represent a vehicle under constant thrust.
@@ -11,38 +13,41 @@ import kotlin.math.abs
  */
 data class PlayerState(
     val visuals: EntityVis,
-    val worldPosition: Vector2,
+    val position: Vector2,
     val velocity: Vector2,
     val collider: Collider.Circle,
+    val friction: Vector2,
     val baseAcceleration: Vector2,
     val maxInputAcceleration: Vector2,
     val collisionStatus: List<CollisionStatus>,
 ) {
     val boundingBox = Bounds(
-        left = worldPosition.x - collider.radius,
-        right = worldPosition.x + collider.radius,
-        top = worldPosition.y + collider.radius,
-        bottom = worldPosition.y - collider.radius,
+        left = position.x - collider.radius,
+        right = position.x + collider.radius,
+        top = position.y + collider.radius,
+        bottom = position.y - collider.radius,
     )
 }
 
 /**
+ * [position]: position relative to game bounds
  * [velocity]: local velocity in addition to world velocity
  */
 data class WorldEntity(
     val id: String,
+    val position: Vector2,
     val visuals: EntityVis,
-    val worldPosition: Vector2,
     val velocity: Vector2,
     val collider: Collider,
+    val isStaticToGameBounds: Boolean,
 ) {
     val boundingBox = when (collider) {
-        is Collider.Box -> collider.bounds.offset(worldPosition)
+        is Collider.Box -> collider.bounds.offset(position)
         is Collider.Circle -> Bounds(
-            left = worldPosition.x - collider.radius,
-            right = worldPosition.x + collider.radius,
-            top = worldPosition.y + collider.radius,
-            bottom = worldPosition.y - collider.radius,
+            left = position.x - collider.radius,
+            right = position.x + collider.radius,
+            top = position.y + collider.radius,
+            bottom = position.y - collider.radius,
         )
     }
 }
@@ -147,4 +152,55 @@ data class Bounds(
             top = vector2.y + height / 2.0,
             bottom = vector2.y - height / 2.0,
         )
+}
+
+data class LerpOverTime(
+    val durationNanos: Long,
+    val startValue: Double,
+    val endValue: Double,
+    val accumulatedNanos: Long = 0,
+    val easing: CubicBezierEasing = CubicBezierEasing(0.4, 0.0, 0.2, 1.0),
+) {
+    val value by lazy {
+        startValue + (endValue - startValue) *
+                easing.transform(accumulatedNanos.toDouble() / durationNanos.toDouble())
+    }
+}
+
+/**
+ * Adapted from androidx.compose.animation.core.Easing
+ */
+data class CubicBezierEasing(
+    private val a: Double,
+    private val b: Double,
+    private val c: Double,
+    private val d: Double,
+) {
+    private fun evaluateCubic(a: Double, b: Double, m: Double): Double =
+        3 * a * (1 - m) * (1 - m) * m +
+                3 * b * (1 - m) * m * m +
+                m * m * m
+
+    fun transform(fraction: Double): Double {
+        if (fraction > 0 && fraction < 1) {
+            var start = 0.0
+            var end = 1.0
+            while (true) {
+                val midpoint = (start + end) / 2
+                val estimate = evaluateCubic(a, c, midpoint)
+                if ((fraction - estimate).absoluteValue < CubicErrorBound)
+                    return evaluateCubic(b, d, midpoint)
+                if (estimate < fraction)
+                    start = midpoint
+                else
+                    end = midpoint
+            }
+        } else {
+            return fraction
+        }
+    }
+
+    companion object {
+        private const val CubicErrorBound: Double = 0.001
+    }
 }

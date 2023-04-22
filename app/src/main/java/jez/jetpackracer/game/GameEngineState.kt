@@ -9,7 +9,12 @@ sealed class GameEngineState {
 
     data class Running(
         val worldState: WorldState,
+        val input: GameInput,
     ) : GameEngineState()
+
+    data class GameInput(
+        val movementVector: Vector2,
+    )
 }
 
 data class WorldState(
@@ -20,35 +25,32 @@ data class WorldState(
     val localGameBounds: Bounds,
 
     /**
-     * The velocity of the local coordinate origin.
-     *
-     * This establishes a base-line velocity of the game.
+     * The world moves, taking all non-local entities with it.
+     * Movement is managed by a current speed, target speed and acceleration lerp,
+     * applied relative to a specific vector.
      */
-    val baseWorldVelocity: Vector2,
+    val worldMovementVector: Vector2,
+    val worldSpeed: LerpOverTime,
 
     /**
-     * Non-linear factor used to proportionally reduce velocity per axis.
-     *
-     * Value of 1.0 will negate all velocity from previous frame, 0.0 means no velocity reduction.
+     * Tracks the offset of all entities from the world's origin
      */
-    val friction: Vector2,
-
-    /**
-     * Tracks the offset of the relativeGameBounds vs the world origin.
-     */
-    val baseWorldOffset: Vector2,
+    val worldOrigin: Vector2,
 
     /**
      * Anchor point for the view port.
      *
      * Tracks after the player position.
      */
-    val viewWorldOrigin: Vector2,
+    val viewOriginOffset: Vector2,
 
     /**
      * Affects how fast the view tracks after the player.
+     * Value of 1 means the view always snaps to the player's position
+     * Value of 0.5 means the view will follow the player by half their
+     * relative offset per second
      */
-    val viewVelocityFactor: Vector2,
+    val viewUpdateSpeedFactor: Double,
 
     /**
      * Player is a special entity that we are going to need to
