@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,7 +29,6 @@ class GameVM @Inject constructor(
         object Pause : Event()
         object Resume : Event()
         object StartNewGame : Event()
-        data class ViewReady(val width: Float, val height: Float) : Event()
         data class UpdateViewBounds(val width: Float, val height: Float) : Event()
         data class GameTimeUpdate(val deltaNanos: Long) : Event()
     }
@@ -73,17 +73,27 @@ class GameVM @Inject constructor(
         }
     }
 
-    private fun loadingProcessEvent(event: Event) {
+    private suspend fun loadingProcessEvent(event: Event) {
         when (event) {
-            is Event.ViewReady -> {
+            is Event.UpdateViewBounds -> {
+                Timber.i("loadingProcessEvent UpdateViewBounds x:${event.width} y:${event.height}")
                 vmState.value = State.Running(
                     viewWidth = event.width,
                     viewHeight = event.height,
                     viewScale = 1f,
                     isPaused = false,
                 )
+
+                gameEngine.configure(
+                    config = GameConfiguration(
+                        worldSize = Vector2(2000.0, 5000.0),
+                        playerColor = Color.LightGray,
+                        playerSpeed = Vector2(20.0, 20.0),
+                        playerFriction = Vector2(0.75, 0.75),
+                        playerRadius = 30.0,
+                    )
+                )
             }
-            is Event.UpdateViewBounds,
             is Event.GameTimeUpdate,
             is Event.StartNewGame,
             is Event.Pause,
@@ -91,7 +101,7 @@ class GameVM @Inject constructor(
         }
     }
 
-    private suspend fun runningProcessEvent(state: State.Running, event: Event) {
+    private fun runningProcessEvent(state: State.Running, event: Event) {
         when (event) {
             is Event.GameTimeUpdate -> gameEngine.update(event.deltaNanos)
             is Event.Pause -> vmState.value = state.copy(isPaused = true)
@@ -100,20 +110,10 @@ class GameVM @Inject constructor(
                 gameEngine.start()
                 vmState.value = state.copy(isPaused = false)
             }
-            is Event.UpdateViewBounds -> vmState.value =
-                state.copy(viewWidth = event.width, viewHeight = event.height)
-            is Event.ViewReady -> {
+            is Event.UpdateViewBounds -> {
                 vmState.value =
                     state.copy(viewWidth = event.width, viewHeight = event.height)
-                gameEngine.configure(
-                    config = GameConfiguration(
-                        worldSize = Vector2(500.0, 1000.0),
-                        playerColor = Color.LightGray,
-                        playerSpeed = Vector2(20.0, 20.0),
-                        playerFriction = Vector2(0.75, 0.75),
-                        playerRadius = 5.0,
-                    )
-                )
+                // TODO: handle reconfiguration during running
             }
         }
     }

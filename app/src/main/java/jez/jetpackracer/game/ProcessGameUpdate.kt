@@ -80,6 +80,7 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 }
 
             return initialState.copy(
+                elapsedTimeNanos = elapsedTimeNanos + updateNanos,
                 worldSpeed = updatedWorldSpeed,
                 worldOrigin = updatedWorldOrigin,
                 viewOriginOffset = updatedViewOriginOffset,

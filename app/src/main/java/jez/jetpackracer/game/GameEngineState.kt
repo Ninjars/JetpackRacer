@@ -24,6 +24,7 @@ sealed class GameEngineState {
 }
 
 data class WorldState(
+    val elapsedTimeNanos: Long = 0,
     /**
      * Defines the relative local size of the simulated game world.
      * Offset these bounds by baseWorldOffset to convert to world bounds.

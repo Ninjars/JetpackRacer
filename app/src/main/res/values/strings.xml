@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Jetpack Racer</string>
+
+    <string name="command_start_new_game">Start new game</string>
 </resources>
