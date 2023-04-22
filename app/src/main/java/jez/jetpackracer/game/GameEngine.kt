@@ -21,20 +21,18 @@ class GameEngine @Inject constructor() {
         yield()
     }
 
-    suspend fun update(deltaNanos: Long) {
+    fun update(deltaNanos: Long) {
         val currentState = mutableState.value
         mutableState.value = when (currentState) {
             is GameEngineState.Uninitialised,
             is GameEngineState.Initialising -> currentState
-            is GameEngineState.Idling -> TODO()
+            is GameEngineState.Idling -> currentState
             is GameEngineState.Running -> {
-                // process input and update state accordingly (eg player velocity, pause command)
-
                 // step game simulation to get updated state and events
                 val updatedWorld =
                     ProcessGameUpdate(currentState.worldState, currentState.input, deltaNanos)
 
-                // process events (enqueue sound effects)
+                // process events (enqueue sound effects for collisions, check for end game conditions)
 
                 // push updated state
                 currentState.copy(worldState = updatedWorld)

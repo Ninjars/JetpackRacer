@@ -31,15 +31,18 @@ class GameVM @Inject constructor(
     sealed class State {
         abstract val viewWidth: Float
         abstract val viewHeight: Float
+        abstract val viewScale: Float
 
         data class Loading(
             override val viewWidth: Float = 0f,
             override val viewHeight: Float = 0f,
+            override val viewScale: Float = 1f,
         ) : State()
 
         data class Running(
             override val viewWidth: Float,
             override val viewHeight: Float,
+            override val viewScale: Float,
             val isPaused: Boolean,
         ) : State()
     }

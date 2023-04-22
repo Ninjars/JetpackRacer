@@ -1,9 +1,13 @@
 package jez.jetpackracer.features.game
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import jez.jetpackracer.features.game.GameViewState.EntityVisuals.EntityColor
+import jez.jetpackracer.game.Bounds
 import jez.jetpackracer.game.GameEngineState
 import jez.jetpackracer.game.PlayerState
+import jez.jetpackracer.game.WorldEntity
+import jez.jetpackracer.game.WorldState
 
 data class GameViewState(
     val inGameState: InGameViewState?
@@ -47,37 +51,92 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
     private fun createViewState(
         vmState: GameVM.State.Running,
         engineState: GameEngineState
-    ): GameViewState.InGameViewState? =
+    ): GameViewState.InGameViewState =
         when (engineState) {
-            is GameEngineState.Running ->
+            is GameEngineState.Running -> {
+                val worldState = engineState.worldState
+                val viewportOffset = worldState.viewportToScreenOffset(
+                    vmState.viewWidth,
+                    vmState.viewHeight,
+                    vmState.viewScale,
+                )
                 GameViewState.InGameViewState.Running(
                     isPaused = vmState.isPaused,
-                    player = engineState.worldState.player.toScreenModel(),
-                    entities = engineState.worldState.entities.toScreenModels(),
+                    player = worldState.player.toScreenModel(viewportOffset, vmState.viewScale),
+                    entities = worldState.entities.toScreenModels(
+                        viewportOffset,
+                        vmState.viewScale
+                    ),
                 )
-            is GameEngineState.Idling ->
+            }
+            is GameEngineState.Idling -> {
+                val worldState = engineState.worldState
+                val viewportOffset = worldState.viewportToScreenOffset(
+                    vmState.viewWidth,
+                    vmState.viewHeight,
+                    vmState.viewScale,
+                )
                 GameViewState.InGameViewState.Running(
-                    isPaused = false,
-                    player = engineState.worldState.player.toScreenModel(),
-                    entities = engineState.worldState.entities.toScreenModels(),
+                    isPaused = true,
+                    player = engineState.worldState.player.toScreenModel(
+                        viewportOffset,
+                        vmState.viewScale
+                    ),
+                    entities = engineState.worldState.entities.toScreenModels(
+                        viewportOffset,
+                        vmState.viewScale
+                    ),
                 )
+            }
             is GameEngineState.Uninitialised,
             is GameEngineState.Initialising -> GameViewState.InGameViewState.Uninitialised
         }
 
-    private fun PlayerState.toScreenModel(): GameViewState.Player =
+    /**
+     * Screen coords put [0,0] in the top left with y increasing downwards,
+     * whilst game viewport origin is an offset relative to game bounds,
+     * centers on the player position, and y increases upwards.
+     *
+     * An entity at position [0,0] in game coords should be translated to bottom left of the
+     * screen and then offset by negative viewport offset
+     */
+    private fun WorldState.viewportToScreenOffset(
+        viewWidth: Float,
+        viewHeight: Float,
+        viewScale: Float,
+    ) =
+        Offset(
+            viewWidth / 2f - viewOriginOffset.x.toFloat() * viewScale,
+            -viewHeight + viewOriginOffset.y.toFloat() * viewScale
+        )
+
+    private fun Bounds.toScreenCoords(viewportScreenOffset: Offset, viewScale: Float) =
+        Rect(
+            left = left.toFloat() * viewScale + viewportScreenOffset.x,
+            top = -top.toFloat() * viewScale + viewportScreenOffset.y,
+            right = right.toFloat() * viewScale + viewportScreenOffset.x,
+            bottom = -bottom.toFloat() * viewScale + viewportScreenOffset.y,
+        )
+
+    private fun PlayerState.toScreenModel(
+        viewportScreenOffset: Offset,
+        viewScale: Float
+    ): GameViewState.Player =
         GameViewState.Player(
             visuals = GameViewState.EntityVisuals(
-                bounds = TODO("calculate position relative to viewWorldOrigin and convert to position relative to viewport dims"),
+                bounds = boundingBox.toScreenCoords(viewportScreenOffset, viewScale),
                 color = EntityColor.Player,
             )
         )
 
-    private fun <T> Iterable<T>.toScreenModels(): List<GameViewState.Entity> =
+    private fun Iterable<WorldEntity>.toScreenModels(
+        viewportScreenOffset: Offset,
+        viewScale: Float
+    ): List<GameViewState.Entity> =
         this.map {
             GameViewState.Entity(
                 visuals = GameViewState.EntityVisuals(
-                    bounds =,
+                    bounds = it.boundingBox.toScreenCoords(viewportScreenOffset, viewScale),
                     color = EntityColor.Obstacle,
                 )
             )
