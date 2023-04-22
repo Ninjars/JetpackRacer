@@ -1,5 +1,6 @@
 package jez.jetpackracer.features.game
 
+import androidx.compose.ui.graphics.Color
 import androidx.core.util.Consumer
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -7,8 +8,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jez.jetpackracer.features.game.GameVM.Event
+import jez.jetpackracer.game.GameConfiguration
 import jez.jetpackracer.game.GameEngine
 import jez.jetpackracer.game.GameEngineState
+import jez.jetpackracer.game.Vector2
 import jez.jetpackracer.utils.toViewState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,36 +27,30 @@ class GameVM @Inject constructor(
     sealed class Event {
         object Pause : Event()
         object Resume : Event()
+        object StartNewGame : Event()
+        data class ViewReady(val width: Float, val height: Float) : Event()
         data class UpdateViewBounds(val width: Float, val height: Float) : Event()
         data class GameTimeUpdate(val deltaNanos: Long) : Event()
     }
 
     sealed class State {
-        abstract val viewWidth: Float
-        abstract val viewHeight: Float
-        abstract val viewScale: Float
-
-        data class Loading(
-            override val viewWidth: Float = 0f,
-            override val viewHeight: Float = 0f,
-            override val viewScale: Float = 1f,
-        ) : State()
+        object Loading : State()
 
         data class Running(
-            override val viewWidth: Float,
-            override val viewHeight: Float,
-            override val viewScale: Float,
+            val viewWidth: Float,
+            val viewHeight: Float,
+            val viewScale: Float,
             val isPaused: Boolean,
         ) : State()
     }
 
     data class CombinedState(val vmState: State, val engineState: GameEngineState) {
         companion object {
-            val Initial = CombinedState(State.Loading(), GameEngineState.Uninitialised)
+            val Initial = CombinedState(State.Loading, GameEngineState.Uninitialised)
         }
     }
 
-    private val vmState: MutableStateFlow<State> = MutableStateFlow(State.Loading())
+    private val vmState: MutableStateFlow<State> = MutableStateFlow(State.Loading)
     private val combinedState = combine(
         vmState,
         gameEngine.engineState
@@ -69,18 +66,26 @@ class GameVM @Inject constructor(
         val currentState = vmState.value
         viewModelScope.launch {
             when (currentState) {
-                is State.Loading -> loadingProcessEvent(currentState, event)
+                is State.Loading -> loadingProcessEvent(event)
                 is State.Running -> runningProcessEvent(currentState, event)
             }
 
         }
     }
 
-    private fun loadingProcessEvent(state: State.Loading, event: Event) {
+    private fun loadingProcessEvent(event: Event) {
         when (event) {
-            is Event.UpdateViewBounds -> vmState.value =
-                state.copy(viewWidth = event.width, viewHeight = event.height)
+            is Event.ViewReady -> {
+                vmState.value = State.Running(
+                    viewWidth = event.width,
+                    viewHeight = event.height,
+                    viewScale = 1f,
+                    isPaused = false,
+                )
+            }
+            is Event.UpdateViewBounds,
             is Event.GameTimeUpdate,
+            is Event.StartNewGame,
             is Event.Pause,
             is Event.Resume -> Unit
         }
@@ -91,8 +96,25 @@ class GameVM @Inject constructor(
             is Event.GameTimeUpdate -> gameEngine.update(event.deltaNanos)
             is Event.Pause -> vmState.value = state.copy(isPaused = true)
             is Event.Resume -> vmState.value = state.copy(isPaused = false)
+            is Event.StartNewGame -> {
+                gameEngine.start()
+                vmState.value = state.copy(isPaused = false)
+            }
             is Event.UpdateViewBounds -> vmState.value =
                 state.copy(viewWidth = event.width, viewHeight = event.height)
+            is Event.ViewReady -> {
+                vmState.value =
+                    state.copy(viewWidth = event.width, viewHeight = event.height)
+                gameEngine.configure(
+                    config = GameConfiguration(
+                        worldSize = Vector2(500.0, 1000.0),
+                        playerColor = Color.LightGray,
+                        playerSpeed = Vector2(20.0, 20.0),
+                        playerFriction = Vector2(0.75, 0.75),
+                        playerRadius = 5.0,
+                    )
+                )
+            }
         }
     }
 

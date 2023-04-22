@@ -20,14 +20,7 @@ data class PlayerState(
     val baseAcceleration: Vector2,
     val maxInputAcceleration: Vector2,
     val collisionStatus: List<CollisionStatus>,
-) {
-    val boundingBox = Bounds(
-        left = position.x - collider.radius,
-        right = position.x + collider.radius,
-        top = position.y + collider.radius,
-        bottom = position.y - collider.radius,
-    )
-}
+)
 
 /**
  * [position]: position relative to game bounds
@@ -162,8 +155,10 @@ data class LerpOverTime(
     val easing: CubicBezierEasing = CubicBezierEasing(0.4, 0.0, 0.2, 1.0),
 ) {
     val value by lazy {
-        startValue + (endValue - startValue) *
-                easing.transform(accumulatedNanos.toDouble() / durationNanos.toDouble())
+        if (durationNanos == 0L) endValue else {
+            startValue + (endValue - startValue) *
+                    easing.transform(accumulatedNanos.toDouble() / durationNanos.toDouble())
+        }
     }
 }
 
@@ -204,3 +199,9 @@ data class CubicBezierEasing(
         private const val CubicErrorBound: Double = 0.001
     }
 }
+
+fun Long.nanosToSeconds(): Double =
+    this / 1000000000.0
+
+fun Double.secondsToNanos(): Long =
+    (this * 1000000000).toLong()

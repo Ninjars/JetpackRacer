@@ -2,15 +2,18 @@ package jez.jetpackracer.features.game
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import jez.jetpackracer.features.game.GameViewState.EntityVisuals.EntityColor
+import androidx.compose.ui.graphics.Color
+import jez.jetpackracer.features.game.GameViewState.UiState
 import jez.jetpackracer.game.Bounds
+import jez.jetpackracer.game.EntityVis
 import jez.jetpackracer.game.GameEngineState
 import jez.jetpackracer.game.PlayerState
 import jez.jetpackracer.game.WorldEntity
 import jez.jetpackracer.game.WorldState
 
 data class GameViewState(
-    val inGameState: InGameViewState?
+    val uiState: UiState,
+    val inGameState: InGameViewState?,
 ) {
     sealed class InGameViewState {
         object Uninitialised : InGameViewState()
@@ -22,15 +25,17 @@ data class GameViewState(
         ) : InGameViewState()
     }
 
+    enum class UiState {
+        Initialising,
+        Idling,
+        Running,
+        Paused,
+    }
+
     data class EntityVisuals(
         val bounds: Rect,
-        val color: EntityColor,
-    ) {
-        enum class EntityColor {
-            Player,
-            Obstacle,
-        }
-    }
+        val color: Color,
+    )
 
     data class Player(
         val visuals: EntityVisuals,
@@ -44,11 +49,33 @@ data class GameViewState(
 object StateToViewState : (GameVM.CombinedState) -> GameViewState {
     override fun invoke(state: GameVM.CombinedState): GameViewState =
         when (val vmState = state.vmState) {
-            is GameVM.State.Loading -> GameViewState(inGameState = null)
-            is GameVM.State.Running -> GameViewState(createViewState(vmState, state.engineState))
+            is GameVM.State.Loading -> GameViewState(
+                uiState = UiState.Initialising,
+                inGameState = null,
+            )
+            is GameVM.State.Running -> GameViewState(
+                uiState = createUiViewState(vmState.isPaused, state.engineState),
+                inGameState = createGameViewState(vmState, state.engineState)
+            )
         }
 
-    private fun createViewState(
+    private fun createUiViewState(
+        paused: Boolean,
+        engineState: GameEngineState,
+    ): UiState =
+        when (engineState) {
+            is GameEngineState.Uninitialised,
+            is GameEngineState.Initialising -> UiState.Initialising
+            is GameEngineState.Idling -> UiState.Idling
+            is GameEngineState.Running ->
+                if (paused) {
+                    UiState.Paused
+                } else {
+                    UiState.Running
+                }
+        }
+
+    private fun createGameViewState(
         vmState: GameVM.State.Running,
         engineState: GameEngineState
     ): GameViewState.InGameViewState =
@@ -77,7 +104,7 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
                     vmState.viewScale,
                 )
                 GameViewState.InGameViewState.Running(
-                    isPaused = true,
+                    isPaused = vmState.isPaused,
                     player = engineState.worldState.player.toScreenModel(
                         viewportOffset,
                         vmState.viewScale
@@ -124,8 +151,9 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
     ): GameViewState.Player =
         GameViewState.Player(
             visuals = GameViewState.EntityVisuals(
-                bounds = boundingBox.toScreenCoords(viewportScreenOffset, viewScale),
-                color = EntityColor.Player,
+                bounds = visuals.drawBounds.offset(position)
+                    .toScreenCoords(viewportScreenOffset, viewScale),
+                color = (visuals as EntityVis.SolidColor).color,
             )
         )
 
@@ -137,7 +165,7 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
             GameViewState.Entity(
                 visuals = GameViewState.EntityVisuals(
                     bounds = it.boundingBox.toScreenCoords(viewportScreenOffset, viewScale),
-                    color = EntityColor.Obstacle,
+                    color = (it.visuals as EntityVis.SolidColor).color,
                 )
             )
         }

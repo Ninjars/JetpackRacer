@@ -4,17 +4,23 @@ sealed class GameEngineState {
     object Uninitialised : GameEngineState()
     object Initialising : GameEngineState()
     data class Idling(
+        val config: GameConfiguration,
         val worldState: WorldState,
     ) : GameEngineState()
 
     data class Running(
+        val config: GameConfiguration,
         val worldState: WorldState,
         val input: GameInput,
     ) : GameEngineState()
 
     data class GameInput(
         val movementVector: Vector2,
-    )
+    ) {
+        companion object {
+            val Neutral: GameInput = GameInput(movementVector = Vector2.Zero)
+        }
+    }
 }
 
 data class WorldState(
@@ -22,7 +28,7 @@ data class WorldState(
      * Defines the relative local size of the simulated game world.
      * Offset these bounds by baseWorldOffset to convert to world bounds.
      */
-    val localGameBounds: Bounds,
+    val gameBounds: Bounds,
 
     /**
      * The world moves, taking all non-local entities with it.

@@ -7,9 +7,6 @@ import jez.jetpackracer.game.Vector2.Companion.Right
 import jez.jetpackracer.game.Vector2.Companion.Up
 import kotlin.math.abs
 
-private fun Long.nanosToSeconds() =
-    this / 1000000000.0
-
 object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
     override fun invoke(initialState: WorldState, input: GameInput, updateNanos: Long): WorldState =
         with(initialState) {
@@ -41,10 +38,10 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 // Remove old entities that are outside bounds
                 val entityBounds = it.boundingBox
                 when (dominantVector) {
-                    Up -> entityBounds.top < localGameBounds.bottom
-                    Down -> entityBounds.bottom > localGameBounds.top
-                    Left -> entityBounds.left > localGameBounds.right
-                    Right -> entityBounds.right < localGameBounds.left
+                    Up -> entityBounds.top < gameBounds.bottom
+                    Down -> entityBounds.bottom > gameBounds.top
+                    Left -> entityBounds.left > gameBounds.right
+                    Right -> entityBounds.right < gameBounds.left
                     else -> true
                 }
             }.map { entity ->
