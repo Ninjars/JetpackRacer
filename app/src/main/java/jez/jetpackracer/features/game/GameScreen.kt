@@ -2,13 +2,22 @@ package jez.jetpackracer.features.game
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowLeft
+import androidx.compose.material.icons.filled.ArrowRight
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +38,6 @@ import jez.jetpackracer.features.game.GameVM.Event
 import jez.jetpackracer.utils.KeepScreenOn
 import jez.jetpackracer.utils.observeLifecycle
 import jez.jetpackracer.utils.rememberEventConsumer
-import timber.log.Timber
 
 @Composable
 fun GameScreen(
@@ -56,7 +64,7 @@ private fun GameUi(
     when (stateProvider()) {
         GameViewState.UiState.Initialising -> Unit
         GameViewState.UiState.Idling -> IdleUI(eventHandler)
-        GameViewState.UiState.Running -> Unit // TODO: pause and controls
+        GameViewState.UiState.Running -> RunningUi(eventHandler) // TODO: pause
         GameViewState.UiState.Paused -> Unit // TODO: menu and resume
     }
 }
@@ -74,6 +82,71 @@ private fun IdleUI(eventHandler: (Event) -> Unit) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = stringResource(R.string.command_start_new_game),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RunningUi(eventHandler: (Event) -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+
+        val leftButtonInteraction = remember { MutableInteractionSource() }
+        LaunchedEffect(leftButtonInteraction) {
+            leftButtonInteraction.interactions.collect {
+                when (it) {
+                    is PressInteraction.Press -> eventHandler(Event.UpdateLeftInput(true))
+                    is PressInteraction.Release,
+                    is PressInteraction.Cancel -> eventHandler(Event.UpdateLeftInput(false))
+                }
+            }
+        }
+        val rightButtonInteraction = remember { MutableInteractionSource() }
+        LaunchedEffect(rightButtonInteraction) {
+            rightButtonInteraction.interactions.collect {
+                when (it) {
+                    is PressInteraction.Press -> eventHandler(Event.UpdateRightInput(true))
+                    is PressInteraction.Release,
+                    is PressInteraction.Cancel -> eventHandler(Event.UpdateRightInput(false))
+                }
+            }
+        }
+        Button(
+            modifier = Modifier
+                .padding(bottom = 24.dp, start = 16.dp)
+                .size(80.dp)
+                .align(Alignment.BottomStart),
+            interactionSource = leftButtonInteraction,
+            shape = IconButtonDefaults.outlinedShape,
+            contentPadding = PaddingValues(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(),
+            border = ButtonDefaults.outlinedButtonBorder,
+            onClick = {},
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowLeft,
+                contentDescription = stringResource(R.string.command_move_left),
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Button(
+            modifier = Modifier
+                .padding(bottom = 24.dp, end = 16.dp)
+                .size(80.dp)
+                .align(Alignment.BottomEnd),
+            interactionSource = rightButtonInteraction,
+            shape = IconButtonDefaults.outlinedShape,
+            contentPadding = PaddingValues(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(),
+            border = ButtonDefaults.outlinedButtonBorder,
+            onClick = {},
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowRight,
+                contentDescription = stringResource(R.string.command_move_right),
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
@@ -141,7 +214,6 @@ private fun RunningGame(
 }
 
 private fun DrawScope.drawVisuals(visuals: GameViewState.EntityVisuals) {
-    Timber.w("drawing at ${visuals.bounds}")
     drawRect(
         color = visuals.color,
         topLeft = visuals.bounds.topLeft,

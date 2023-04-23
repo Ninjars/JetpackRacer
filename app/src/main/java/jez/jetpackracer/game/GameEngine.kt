@@ -72,6 +72,24 @@ class GameEngine @Inject constructor() {
         }
     }
 
+    fun updateLeftInput(pressed: Boolean) {
+        when (val currentState = mutableState.value) {
+            is GameEngineState.Running -> mutableState.value = currentState.copy(
+                input = currentState.input.copy(leftInput = if (pressed) 1.0 else .0)
+            )
+            else -> Unit
+        }
+    }
+
+    fun updateRightInput(pressed: Boolean) {
+        when (val currentState = mutableState.value) {
+            is GameEngineState.Running -> mutableState.value = currentState.copy(
+                input = currentState.input.copy(rightInput = if (pressed) 1.0 else .0)
+            )
+            else -> Unit
+        }
+    }
+
     private fun createInitialIdleWorldState(config: GameConfiguration): WorldState {
         val startingPos = Vector2(config.worldSize.x / 2.0, config.worldSize.y / 6.0)
         return WorldState(
@@ -89,7 +107,7 @@ class GameEngine @Inject constructor() {
             ),
             worldOrigin = Vector2.Zero,
             viewOriginOffset = startingPos,
-            viewUpdateSpeedFactor = 0.6,
+            viewUpdateSpeedFactor = 5.0,
             player = PlayerState(
                 visuals = EntityVis.SolidColor(
                     drawBounds = Bounds(

@@ -15,10 +15,12 @@ sealed class GameEngineState {
     ) : GameEngineState()
 
     data class GameInput(
-        val movementVector: Vector2,
+        val leftInput: Double,
+        val rightInput: Double,
     ) {
+        val movementVector by lazy { Vector2(rightInput - leftInput, .0) }
         companion object {
-            val Neutral: GameInput = GameInput(movementVector = Vector2.Zero)
+            val Neutral: GameInput = GameInput(leftInput = .0, rightInput = .0)
         }
     }
 }

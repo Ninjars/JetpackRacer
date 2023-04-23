@@ -31,6 +31,8 @@ class GameVM @Inject constructor(
         object StartNewGame : Event()
         data class UpdateViewBounds(val width: Float, val height: Float) : Event()
         data class GameTimeUpdate(val deltaNanos: Long) : Event()
+        data class UpdateLeftInput(val isPressed: Boolean) : Event()
+        data class UpdateRightInput(val isPressed: Boolean) : Event()
     }
 
     sealed class State {
@@ -88,12 +90,14 @@ class GameVM @Inject constructor(
                     config = GameConfiguration(
                         worldSize = Vector2(2000.0, 5000.0),
                         playerColor = Color.LightGray,
-                        playerSpeed = Vector2(20.0, 20.0),
-                        playerFriction = Vector2(0.75, 0.75),
+                        playerSpeed = Vector2(100.0, 100.0),
+                        playerFriction = Vector2(10.0, 10.0),
                         playerRadius = 30.0,
                     )
                 )
             }
+            is Event.UpdateLeftInput,
+            is Event.UpdateRightInput,
             is Event.GameTimeUpdate,
             is Event.StartNewGame,
             is Event.Pause,
@@ -115,6 +119,10 @@ class GameVM @Inject constructor(
                     state.copy(viewWidth = event.width, viewHeight = event.height)
                 // TODO: handle reconfiguration during running
             }
+            is Event.UpdateLeftInput ->
+                gameEngine.updateLeftInput(event.isPressed)
+            is Event.UpdateRightInput ->
+                gameEngine.updateRightInput(event.isPressed)
         }
     }
 

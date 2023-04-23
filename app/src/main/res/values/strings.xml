@@ -2,4 +2,6 @@
     <string name="app_name">Jetpack Racer</string>
 
     <string name="command_start_new_game">Start new game</string>
+    <string name="command_move_left">Move left</string>
+    <string name="command_move_right">Move right</string>
 </resources>

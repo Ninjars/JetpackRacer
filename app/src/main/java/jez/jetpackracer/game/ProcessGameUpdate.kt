@@ -24,9 +24,8 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
             // update player
             val carriedPlayerVelocity =
                 player.velocity - player.velocity * player.friction * updateSeconds
-            val basePlayerVelocityChange =
-                player.baseAcceleration * updateSeconds
-            val inputVelocity = player.maxInputAcceleration * input.movementVector * updateSeconds
+            val basePlayerVelocityChange = player.baseAcceleration
+            val inputVelocity = player.maxInputAcceleration * input.movementVector
             val playerVelocity = carriedPlayerVelocity + basePlayerVelocityChange + inputVelocity
             val playerPosition = player.position + playerVelocity * updateSeconds
             val updatedViewOriginOffset =
