@@ -122,10 +122,11 @@ private fun RunningGame(
     eventHandler: (Event) -> Unit,
 ) {
     LaunchedEffect(state.isPaused) {
-        val start = withFrameNanos { it }
+        var lastFrame = withFrameNanos { it }
         while (!state.isPaused) {
             withFrameNanos {
-                eventHandler(Event.GameTimeUpdate(it - start))
+                eventHandler(Event.GameTimeUpdate(it - lastFrame))
+                lastFrame = it
             }
         }
     }
