@@ -1,6 +1,7 @@
 package jez.jetpackracer.game
 
 import androidx.compose.ui.graphics.Color
+import androidx.core.math.MathUtils.clamp
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 
@@ -112,6 +113,14 @@ data class Bounds(
     val right: Double,
     val bottom: Double,
 ) {
+
+    constructor(width: Double, height: Double) : this(
+        left = -width / 2.0,
+        top = height / 2.0,
+        right = width / 2.0,
+        bottom = -height / 2.0,
+    )
+
     val width = right - left
     val height = top - bottom
 
@@ -156,8 +165,12 @@ data class LerpOverTime(
 ) {
     val value by lazy {
         if (durationNanos == 0L) endValue else {
-            startValue + (endValue - startValue) *
-                    easing.transform(accumulatedNanos.toDouble() / durationNanos.toDouble())
+            clamp(
+                startValue + (endValue - startValue) *
+                        easing.transform(accumulatedNanos.toDouble() / durationNanos.toDouble()),
+                startValue,
+                endValue,
+            )
         }
     }
 }

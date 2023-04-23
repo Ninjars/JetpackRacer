@@ -6,7 +6,10 @@ import jez.jetpackracer.game.Vector2.Companion.Down
 import jez.jetpackracer.game.Vector2.Companion.Left
 import jez.jetpackracer.game.Vector2.Companion.Right
 import jez.jetpackracer.game.Vector2.Companion.Up
+import java.util.*
 import kotlin.math.abs
+import kotlin.math.min
+import kotlin.random.Random
 
 object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
     override fun invoke(initialState: WorldState, input: GameInput, updateNanos: Long): WorldState =
@@ -38,14 +41,15 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
 
             // Update entities
             val dominantVector = worldVelocity.dominantDirection()
-            val activeEntities = entities.filter {
+            val despawnBuffer = min(gameBounds.width, gameBounds.height) * 0.1f
+            val activeEntities = entities.filterNot {
                 // Remove old entities that are outside bounds
                 val entityBounds = it.boundingBox
                 when (dominantVector) {
-                    Up -> entityBounds.top < gameBounds.bottom
-                    Down -> entityBounds.bottom > gameBounds.top
-                    Left -> entityBounds.left > gameBounds.right
-                    Right -> entityBounds.right < gameBounds.left
+                    Up -> entityBounds.top < gameBounds.bottom - despawnBuffer
+                    Down -> entityBounds.bottom > gameBounds.top + despawnBuffer
+                    Left -> entityBounds.left > gameBounds.right + despawnBuffer
+                    Right -> entityBounds.right < gameBounds.left - despawnBuffer
                     else -> true
                 }
             }.map { entity ->
@@ -53,7 +57,7 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 with(entity) {
                     copy(
                         position = (position + velocity * updateSeconds)
-                            .let { if (isStaticToGameBounds) it + worldDistanceThisFrame else it }
+                            .let { if (isStaticToGameBounds) it else it - worldDistanceThisFrame }
                     )
                 }
             }
@@ -83,6 +87,13 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                     )
                 }
 
+            val secondsSinceLastSpawn = secondsSinceLastEnemySpawn + updateSeconds
+            val spawnedEntities = spawnEntitiesIfPossible(
+                gameBounds,
+                enemySpawnConfig,
+                secondsSinceLastSpawn,
+            )
+
             return initialState.copy(
                 elapsedTimeNanos = elapsedTimeNanos + updateNanos,
                 worldSpeed = updatedWorldSpeed,
@@ -93,9 +104,37 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                     velocity = playerVelocity,
                     collisionStatus = newOrOngoingCollisions + endingCollisions
                 ),
-                entities = activeEntities,
+                entities = spawnedEntities?.let { activeEntities + it } ?: activeEntities,
+                secondsSinceLastEnemySpawn = spawnedEntities?.let { .0 } ?: secondsSinceLastSpawn
             )
         }
+
+    private fun spawnEntitiesIfPossible(
+        gameBounds: Bounds,
+        enemySpawnConfig: WorldState.EnemySpawnConfig,
+        secondsSinceLastSpawn: Double
+    ): List<WorldEntity>? =
+        with(enemySpawnConfig) {
+            if (secondsSinceLastSpawn < spawnIntervalSeconds) {
+                null
+            } else {
+                val bounds = Bounds(width.random(), height.random())
+                listOf(
+                    WorldEntity(
+                        id = UUID.randomUUID().toString(),
+                        position = Vector2(
+                            (0.0..gameBounds.width).random(),
+                            gameBounds.height + bounds.height * .5
+                        ),
+                        visuals = EntityVis.SolidColor(bounds, color),
+                        velocity = Vector2.Zero,
+                        collider = Collider.Box(bounds),
+                        isStaticToGameBounds = false,
+                    )
+                )
+            }
+        }
+
 
     private fun WorldEntity.isCollidingWith(
         playerPosition: Vector2,
@@ -145,3 +184,6 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
     }
 
 }
+
+private fun ClosedFloatingPointRange<Double>.random(): Double =
+    start + Random.nextDouble() * (endInclusive - start)

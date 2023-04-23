@@ -135,9 +135,9 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
     private fun Bounds.toScreenCoords(viewportScreenOffset: Offset, viewScale: Float) =
         Rect(
             left = left.toFloat() * viewScale + viewportScreenOffset.x,
-            top = top.toFloat() * viewScale + viewportScreenOffset.y,
+            top = -top.toFloat() * viewScale + viewportScreenOffset.y,
             right = right.toFloat() * viewScale + viewportScreenOffset.x,
-            bottom = bottom.toFloat() * viewScale + viewportScreenOffset.y,
+            bottom = -bottom.toFloat() * viewScale + viewportScreenOffset.y,
         )
 
     private fun PlayerState.toScreenModel(

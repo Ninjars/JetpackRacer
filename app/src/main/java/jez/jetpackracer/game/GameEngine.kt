@@ -13,6 +13,7 @@ data class GameConfiguration(
     val playerSpeed: Vector2,
     val playerFriction: Vector2 = Vector2(0.75, 0.75),
     val playerRadius: Double = 5.0,
+    val obstacleColor: Color,
 )
 
 class GameEngine @Inject constructor() {
@@ -116,7 +117,7 @@ class GameEngine @Inject constructor() {
                         right = config.playerRadius,
                         bottom = -config.playerRadius,
                     ),
-                    color = Color.Blue,
+                    color = config.playerColor,
                 ),
                 position = startingPos,
                 velocity = Vector2.Zero,
@@ -127,6 +128,12 @@ class GameEngine @Inject constructor() {
                 collisionStatus = emptyList(),
             ),
             entities = emptyList(),
+            enemySpawnConfig = WorldState.EnemySpawnConfig(
+                spawnIntervalSeconds = 0.25,
+                width = 20.0..100.0,
+                height = 50.0..200.0,
+                color = config.obstacleColor,
+            ),
         )
     }
 
@@ -134,9 +141,10 @@ class GameEngine @Inject constructor() {
         initialWorldState.copy(
             worldOrigin = Vector2.Zero,
             worldSpeed = LerpOverTime(
-                durationNanos = 5.0.secondsToNanos(),
-                startValue = .0,
-                endValue = 10.0,
+                durationNanos = 60.0.secondsToNanos(),
+                startValue = 100.0,
+                endValue = 2000.0,
             ),
+            secondsSinceLastEnemySpawn = Double.MAX_VALUE,
         )
 }

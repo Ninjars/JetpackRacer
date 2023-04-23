@@ -1,5 +1,7 @@
 package jez.jetpackracer.game
 
+import androidx.compose.ui.graphics.Color
+
 sealed class GameEngineState {
     object Uninitialised : GameEngineState()
     object Initialising : GameEngineState()
@@ -19,6 +21,7 @@ sealed class GameEngineState {
         val rightInput: Double,
     ) {
         val movementVector by lazy { Vector2(rightInput - leftInput, .0) }
+
         companion object {
             val Neutral: GameInput = GameInput(leftInput = .0, rightInput = .0)
         }
@@ -77,4 +80,14 @@ data class WorldState(
      * Velocity is in World space.
      */
     val entities: List<WorldEntity>,
-)
+
+    val secondsSinceLastEnemySpawn: Double = .0,
+    val enemySpawnConfig: EnemySpawnConfig,
+) {
+    data class EnemySpawnConfig(
+        val spawnIntervalSeconds: Double,
+        val width: ClosedFloatingPointRange<Double>,
+        val height: ClosedFloatingPointRange<Double>,
+        val color: Color,
+    )
+}

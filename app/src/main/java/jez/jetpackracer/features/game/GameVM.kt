@@ -88,11 +88,12 @@ class GameVM @Inject constructor(
 
                 gameEngine.configure(
                     config = GameConfiguration(
-                        worldSize = Vector2(2000.0, 5000.0),
+                        worldSize = Vector2(2000.0, event.height.toDouble()),
                         playerColor = Color.LightGray,
                         playerSpeed = Vector2(100.0, 100.0),
                         playerFriction = Vector2(10.0, 10.0),
                         playerRadius = 30.0,
+                        obstacleColor = Color.Red
                     )
                 )
             }
