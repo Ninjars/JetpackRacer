@@ -1,5 +1,6 @@
 package jez.jetpackracer.game
 
+import androidx.core.math.MathUtils.clamp
 import jez.jetpackracer.game.GameEngineState.GameInput
 import jez.jetpackracer.game.Vector2.Companion.Down
 import jez.jetpackracer.game.Vector2.Companion.Left
@@ -27,7 +28,11 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
             val basePlayerVelocityChange = player.baseAcceleration
             val inputVelocity = player.maxInputAcceleration * input.movementVector
             val playerVelocity = carriedPlayerVelocity + basePlayerVelocityChange + inputVelocity
-            val playerPosition = player.position + playerVelocity * updateSeconds
+            val prospectivePlayerPosition = player.position + playerVelocity * updateSeconds
+            val playerPosition = Vector2(
+                clamp(prospectivePlayerPosition.x, .0, gameBounds.width),
+                clamp(prospectivePlayerPosition.y, .0, gameBounds.height),
+            )
             val updatedViewOriginOffset =
                 viewOriginOffset + (playerPosition - viewOriginOffset) * viewUpdateSpeedFactor * updateSeconds
 
