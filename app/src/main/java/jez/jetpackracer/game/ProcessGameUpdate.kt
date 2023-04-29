@@ -30,14 +30,12 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 player.velocity - player.velocity * player.friction * updateSeconds
             val basePlayerVelocityChange = player.baseAcceleration
             val inputVelocity = player.maxInputAcceleration * input.movementVector
-            val playerVelocity = carriedPlayerVelocity + basePlayerVelocityChange + inputVelocity
+            var playerVelocity = carriedPlayerVelocity + basePlayerVelocityChange + inputVelocity
             val prospectivePlayerPosition = player.position + playerVelocity * updateSeconds
-            val playerPosition = Vector2(
+            var playerPosition = Vector2(
                 clamp(prospectivePlayerPosition.x, .0, gameBounds.width),
                 clamp(prospectivePlayerPosition.y, .0, gameBounds.height),
             )
-            val updatedViewOriginOffset =
-                viewOriginOffset + (playerPosition - viewOriginOffset) * viewUpdateSpeedFactor * updateSeconds
 
             // Update entities
             val dominantVector = worldVelocity.dominantDirection()
@@ -63,14 +61,15 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
             }
 
             // check for player/entity collisions, tracking start, duration and end of collisions
-            val collidingEntities = activeEntities.filter {
-                it.isCollidingWith(playerPosition, player.collider)
+            val collidingEntities = activeEntities.mapNotNull { entity ->
+                entity.collisionPoint(playerPosition, player.collider)?.let { Pair(entity, it) }
             }
-            val newOrOngoingCollisions = collidingEntities.map { collidingEntity ->
+            val newOrOngoingCollisions = collidingEntities.map { (entity, collisionPos) ->
                 val previousCollision = player.collisionStatus
-                    .firstOrNull { it.collisionTarget == collidingEntity }
+                    .firstOrNull { it.collisionTarget == entity }
                 CollisionStatus(
-                    collisionTarget = collidingEntity,
+                    collisionTarget = entity,
+                    collisionPosition = collisionPos,
                     didCollisionStartThisFrame = previousCollision == null,
                     collisionDurationNanos = previousCollision?.let { it.collisionDurationNanos + updateNanos }
                         ?: 0,
@@ -93,6 +92,9 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 enemySpawnConfig,
                 secondsSinceLastSpawn,
             )
+
+            val updatedViewOriginOffset =
+                viewOriginOffset + (playerPosition - viewOriginOffset) * viewUpdateSpeedFactor * updateSeconds
 
             return initialState.copy(
                 elapsedTimeNanos = elapsedTimeNanos + updateNanos,
@@ -136,10 +138,10 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
         }
 
 
-    private fun WorldEntity.isCollidingWith(
+    private fun WorldEntity.collisionPoint(
         playerPosition: Vector2,
         playerCollider: Collider.Circle
-    ) =
+    ): Vector2? =
         when (collider) {
             is Collider.Circle ->
                 circleCollision(
@@ -156,7 +158,11 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
         }
 
     private fun circleCollision(distance: Double, position1: Vector2, position2: Vector2) =
-        distance * distance <= Vector2.sqrMag(position1, position2)
+        if (distance * distance <= Vector2.sqrMag(position1, position2)) {
+            position1 + (position2 - position1) * 0.5
+        } else {
+            null
+        }
 
     /**
      * Axis-aligned bounding box collision check.
@@ -166,21 +172,25 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
         circlePos: Vector2,
         circleRadius: Double,
         box: Bounds,
-    ): Boolean {
+    ): Vector2? {
         val distX = abs(circlePos.x - box.center.x)
         val distY = abs(circlePos.y - box.center.y)
 
         // proximity check
-        if (distX > box.width / 2.0 + circleRadius) return false
-        if (distY > box.height / 2.0 + circleRadius) return false
+        if (distX > box.width / 2.0 + circleRadius || distY > box.height / 2.0 + circleRadius)
+            return null
 
         // within box check
-        if (distX <= box.width / 2.0) return true
-        if (distY <= box.height / 2.0) return true
+        if (distX <= box.width / 2.0 || distY <= box.height / 2.0)
+            return (box.center + (circlePos - box.center)).clamp(box)
 
         val dx = distX - box.width / 2.0
         val dy = distY - box.height / 2.0
-        return dx * dx + dy * dy <= circleRadius * circleRadius
+        return if (dx * dx + dy * dy <= circleRadius * circleRadius) {
+            return (box.center + (circlePos - box.center)).clamp(box)
+        } else {
+            null
+        }
     }
 
 }

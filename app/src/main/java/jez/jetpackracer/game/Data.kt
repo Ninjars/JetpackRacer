@@ -48,6 +48,7 @@ data class WorldEntity(
 
 data class CollisionStatus(
     val collisionTarget: WorldEntity?,
+    val collisionPosition: Vector2?,
     val didCollisionStartThisFrame: Boolean,
     val collisionDurationNanos: Long,
 ) {
@@ -93,6 +94,25 @@ data class Vector2(
             if (x > 0) Right else Left
         } else {
             if (y > 0) Up else Down
+        }
+
+    fun clamp(box: Bounds) =
+        Vector2(
+            x.coerceIn(box.left, box.right),
+            y.coerceIn(box.bottom, box.top)
+        )
+
+    fun invert() =
+        Vector2(-x, -y)
+
+    fun offset(vector: Vector2) =
+        Vector2(x + vector.x, y + vector.y)
+
+    fun snapToNormalisedOrthogonalDirection() =
+        when {
+            x == .0 && y == .0 -> Zero
+            abs(x) > abs(y) -> if (x > 0) Left else Right
+            else -> if (y > 0) Up else Down
         }
 
     companion object {

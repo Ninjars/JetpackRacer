@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import jez.jetpackracer.features.game.GameViewState.UiState
 import jez.jetpackracer.game.Bounds
+import jez.jetpackracer.game.CollisionStatus
 import jez.jetpackracer.game.EntityVis
 import jez.jetpackracer.game.GameEngineState
 import jez.jetpackracer.game.PlayerState
@@ -22,6 +23,7 @@ data class GameViewState(
             val isPaused: Boolean,
             val player: Player,
             val entities: List<Entity>,
+            val collisionPoints: List<Offset>,
         ) : InGameViewState()
     }
 
@@ -88,15 +90,20 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
                 )
                 GameViewState.InGameViewState.Running(
                     isPaused = vmState.isPaused,
-                    player = worldState.player.toScreenModel(
+                    player = worldState.player.toPlayerScreenModel(
                         engineState.worldState.viewOriginOffset,
                         viewportOffset,
                         vmState.viewScale,
                     ),
-                    entities = worldState.entities.toScreenModels(
+                    entities = worldState.entities.toEntityScreenModel(
                         engineState.worldState.viewOriginOffset,
                         viewportOffset,
                         vmState.viewScale
+                    ),
+                    collisionPoints = engineState.worldState.player.collisionStatus.toCollisionScreenModels(
+                        engineState.worldState.viewOriginOffset,
+                        viewportOffset,
+                        vmState.viewScale,
                     ),
                 )
             }
@@ -107,15 +114,20 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
                 )
                 GameViewState.InGameViewState.Running(
                     isPaused = vmState.isPaused,
-                    player = engineState.worldState.player.toScreenModel(
+                    player = engineState.worldState.player.toPlayerScreenModel(
                         engineState.worldState.viewOriginOffset,
                         viewportOffset,
-                        vmState.viewScale
+                        vmState.viewScale,
                     ),
-                    entities = engineState.worldState.entities.toScreenModels(
+                    entities = engineState.worldState.entities.toEntityScreenModel(
                         engineState.worldState.viewOriginOffset,
                         viewportOffset,
-                        vmState.viewScale
+                        vmState.viewScale,
+                    ),
+                    collisionPoints = engineState.worldState.player.collisionStatus.toCollisionScreenModels(
+                        engineState.worldState.viewOriginOffset,
+                        viewportOffset,
+                        vmState.viewScale,
                     ),
                 )
             }
@@ -140,7 +152,13 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
             bottom = -bottom.toFloat() * viewScale + viewportScreenOffset.y,
         )
 
-    private fun PlayerState.toScreenModel(
+    private fun Vector2.toScreenCoords(viewportScreenOffset: Offset, viewScale: Float) =
+        Offset(
+            x = x.toFloat() * viewScale + viewportScreenOffset.x,
+            y = y.toFloat() * viewScale + viewportScreenOffset.y,
+        )
+
+    private fun PlayerState.toPlayerScreenModel(
         gameViewOrigin: Vector2,
         viewportScreenOffset: Offset,
         viewScale: Float
@@ -153,10 +171,10 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
             )
         )
 
-    private fun Iterable<WorldEntity>.toScreenModels(
+    private fun Iterable<WorldEntity>.toEntityScreenModel(
         gameViewOrigin: Vector2,
         viewportScreenOffset: Offset,
-        viewScale: Float
+        viewScale: Float,
     ): List<GameViewState.Entity> =
         this.map {
             GameViewState.Entity(
@@ -165,6 +183,18 @@ object StateToViewState : (GameVM.CombinedState) -> GameViewState {
                         .toScreenCoords(viewportScreenOffset, viewScale),
                     color = (it.visuals as EntityVis.SolidColor).color,
                 )
+            )
+        }
+
+    private fun Iterable<CollisionStatus>.toCollisionScreenModels(
+        gameViewOrigin: Vector2,
+        viewportScreenOffset: Offset,
+        viewScale: Float,
+    ): List<Offset> =
+        this.mapNotNull {
+            it.collisionPosition?.offset(-gameViewOrigin)?.toScreenCoords(
+                viewportScreenOffset,
+                viewScale
             )
         }
 }
