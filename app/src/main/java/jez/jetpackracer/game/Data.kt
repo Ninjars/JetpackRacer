@@ -112,7 +112,7 @@ data class Vector2(
         when {
             x == .0 && y == .0 -> Zero
             abs(x) > abs(y) -> if (x > 0) Left else Right
-            else -> if (y > 0) Up else Down
+            else -> if (y < 0) Up else Down
         }
 
     companion object {
