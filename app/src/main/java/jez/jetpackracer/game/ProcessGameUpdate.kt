@@ -76,15 +76,46 @@ object ProcessGameUpdate : (WorldState, GameInput, Long) -> WorldState {
                 )
             }
             val endingCollisions = player.collisionStatus
-                .filterNot { it.collisionTarget == null }
-                .filterNot { collidingEntities.contains(it.collisionTarget) }
-                .map {
-                    CollisionStatus(
-                        collisionTarget = null,
-                        didCollisionStartThisFrame = false,
-                        collisionDurationNanos = it.collisionDurationNanos,
-                    )
+                .mapNotNull { collision ->
+                    when {
+                        collision.collisionTarget == null -> null
+                        collidingEntities.any { it.first == collision.collisionTarget } -> null
+                        else ->
+                            CollisionStatus(
+                                collisionTarget = null,
+                                collisionPosition = null,
+                                didCollisionStartThisFrame = false,
+                                collisionDurationNanos = collision.collisionDurationNanos,
+                            )
+                    }
                 }
+
+            // update player velocity and position based on collisions
+            val snappedFatalCollisionVector =
+                worldMovementVector.snapToNormalisedOrthogonalDirection()
+            var playerHasCrashed = false
+            newOrOngoingCollisions.forEach {
+                if (it.collisionPosition != null) {
+                    val collisionVector = (playerPosition - it.collisionPosition).snapToNormalisedOrthogonalDirection()
+                    // did the player just face-plant?
+                    if (snappedFatalCollisionVector == collisionVector) {
+                        playerHasCrashed = true
+                        playerPosition = it.collisionPosition - collisionVector * player.collider.radius
+
+                    // is player scraping their tail?
+                    } else if (snappedFatalCollisionVector.invert() == collisionVector) {
+                        playerPosition = it.collisionPosition - collisionVector * player.collider.radius
+
+                    // player is side-swiping an obstacle
+                    } else {
+//                        val snappedPlayerVelocityVector = playerVelocity.snapToNormalisedOrthogonalDirection()
+//                        if (snappedPlayerVelocityVector == collisionVector) {
+//                            playerVelocity = Vector2.Zero//playerVelocity.invert() * 0.7
+//                        }
+                        playerPosition = it.collisionPosition - collisionVector * player.collider.radius
+                    }
+                }
+            }
 
             val secondsSinceLastSpawn = secondsSinceLastEnemySpawn + updateSeconds
             val spawnedEntities = spawnEntitiesIfPossible(
