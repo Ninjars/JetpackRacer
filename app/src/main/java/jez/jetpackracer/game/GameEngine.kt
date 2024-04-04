@@ -131,7 +131,7 @@ class GameEngine @Inject constructor() {
             enemySpawnConfig = WorldState.EnemySpawnConfig(
                 spawnIntervalSeconds = 0.25,
                 width = 20.0..100.0,
-                height = 50.0..200.0,
+                height = 100.0..500.0,
                 color = config.obstacleColor,
             ),
         )
@@ -142,8 +142,8 @@ class GameEngine @Inject constructor() {
             worldOrigin = Vector2.Zero,
             worldSpeed = LerpOverTime(
                 durationNanos = 60.0.secondsToNanos(),
-                startValue = 100.0,
-                endValue = 2000.0,
+                startValue = 300.0,
+                endValue = 600.0,
             ),
             secondsSinceLastEnemySpawn = Double.MAX_VALUE,
         )
